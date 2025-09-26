@@ -8,7 +8,7 @@ import java.util.Random;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        int numPhysicalPages = 6;
+        int numPhysicalPages = 12;
         int numProcesses = 22;
         int numVirtualPagesPerProcess = 16;
         int workingSetSize = 5;
@@ -93,8 +93,26 @@ public class Main {
 
             round++;
             if (round % 50 == 0) {
-                log.printf("\n[Round %d] Frames=%s%n", round, mmu.getPhysicalPages());
+                log.printf("\n[Round %d]\n", round);
+
+                log.println("Free frames:");
+                for (PhysicalPage pp : mmu.getFreePhysicalPages()) {
+                    log.printf("  Frame %d [FREE]%n", pp.getId());
+                }
+
+                log.println("Busy frames:");
+                for (PhysicalPage pp : mmu.getBusyPhysicalPages()) {
+                    VirtualPage vp = pp.getVirtualPage();
+                    log.printf("  Frame %d -> VPage(ppn=%d, pres=%b, ref=%b, mod=%b)%n",
+                            pp.getId(),
+                            vp.getPpn(),
+                            vp.isPresent(),
+                            vp.isReferenced(),
+                            vp.isModified()
+                    );
+                }
             }
+
         }
 
         Stats s = mmu.getStats();

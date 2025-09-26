@@ -9,7 +9,8 @@ import java.util.Random;
 
 @Data
 public class MMU {
-    private final List<PhysicalPage> physicalPages;
+    private final List<PhysicalPage> freePhysicalPages;
+    private final List<PhysicalPage> busyPhysicalPages;
     private final Random random = new Random();
     private final ReplacementPolicy policy;
     private final Stats stats = new Stats();
@@ -19,12 +20,14 @@ public class MMU {
     public MMU(int numPhysicalPages, ReplacementPolicy policy, int resetPeriod) {
         this.policy = policy;
         this.resetPeriod = Math.max(1, resetPeriod);
-        physicalPages = new ArrayList<>();
+
+        freePhysicalPages = new ArrayList<>();
+        busyPhysicalPages = new ArrayList<>();
+
         for (int i = 0; i < numPhysicalPages; i++) {
             PhysicalPage physicalPage = new PhysicalPage();
             physicalPage.setId(i);
-            physicalPage.setFree(true);
-            physicalPages.add(physicalPage);
+            freePhysicalPages.add(physicalPage);
         }
     }
 
@@ -48,11 +51,10 @@ public class MMU {
     }
 
     private void handlePageFault(VirtualPage virtualPage, boolean isWrite) {
-        for (PhysicalPage physicalPage : physicalPages) {
-            if (physicalPage.isFree()) {
-                loadPage(virtualPage, physicalPage, isWrite);
-                return;
-            }
+        if (!freePhysicalPages.isEmpty()) {
+            PhysicalPage physicalPage = freePhysicalPages.remove(0);
+            loadPage(virtualPage, physicalPage, isWrite);
+            return;
         }
 
         PhysicalPage victim;
@@ -69,7 +71,7 @@ public class MMU {
     }
 
     private PhysicalPage pickRandomVictim() {
-        return physicalPages.get(random.nextInt(physicalPages.size()));
+        return busyPhysicalPages.get(random.nextInt(busyPhysicalPages.size()));
     }
 
     private PhysicalPage pickNRUVictim() {
@@ -78,7 +80,7 @@ public class MMU {
         List<PhysicalPage> class2 = new ArrayList<>();
         List<PhysicalPage> class3 = new ArrayList<>();
 
-        for (PhysicalPage physicalPage : physicalPages) {
+        for (PhysicalPage physicalPage : busyPhysicalPages) {
             VirtualPage virtualPage = physicalPage.getVirtualPage();
             boolean referenced = virtualPage.isReferenced();
             boolean modified = virtualPage.isModified();
@@ -105,22 +107,37 @@ public class MMU {
     }
 
     private void loadPage(VirtualPage virtualPage, PhysicalPage physicalPage, boolean isWrite) {
+        freePhysicalPages.remove(physicalPage);
+        if (!busyPhysicalPages.contains(physicalPage)) {
+            busyPhysicalPages.add(physicalPage);
+        }
+
         physicalPage.setVirtualPage(virtualPage);
-        physicalPage.setFree(false);
         virtualPage.setPresent(true);
         virtualPage.setReferenced(true);
         virtualPage.setModified(isWrite);
         virtualPage.setPpn(physicalPage.getId());
     }
 
+
     private void unloadPage(VirtualPage virtualPage) {
+        PhysicalPage physicalPage = busyPhysicalPages.stream()
+                .filter(pp -> pp.getVirtualPage() == virtualPage)
+                .findFirst()
+                .orElse(null);
+
+        if (physicalPage != null) {
+            busyPhysicalPages.remove(physicalPage);
+            freePhysicalPages.add(physicalPage);
+        }
+
         virtualPage.setPresent(false);
         virtualPage.setPpn(-1);
     }
 
     public void resetReferencedBits() {
-        for (PhysicalPage physicalPage : physicalPages) {
-            if (!physicalPage.isFree() && physicalPage.getVirtualPage() != null) {
+        for (PhysicalPage physicalPage : busyPhysicalPages) {
+            if (physicalPage.getVirtualPage() != null) {
                 physicalPage.getVirtualPage().setReferenced(false);
             }
         }

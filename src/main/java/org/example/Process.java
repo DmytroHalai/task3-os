@@ -15,8 +15,10 @@ public class Process {
     public Process(int id, int numPages) {
         this.id = id;
         for (int i = 0; i < numPages; i++) {
-            pageTable.getVirtualPages().add(new VirtualPage());
-            pageTable.getVirtualPages().get(i).ppn = i;
+            VirtualPage vp = new VirtualPage();
+            vp.setPid(id);
+            vp.setVpn(i);
+            pageTable.getVirtualPages().add(vp);
         }
     }
 

@@ -4,8 +4,10 @@ import lombok.Data;
 
 @Data
 public class VirtualPage {
-    int ppn;
-    boolean present;
-    boolean referenced;
-    boolean modified;
+    private int ppn;
+    private boolean present;
+    private boolean referenced;
+    private boolean modified;
+    private int pid;
+    private int vpn;
 }

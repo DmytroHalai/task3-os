@@ -135,6 +135,27 @@ public class MMU {
         virtualPage.setPpn(-1);
     }
 
+    public void terminateProcess(Process process) {
+        // знаходимо всі зайняті фізичні сторінки, що належать цьому процесу
+        List<PhysicalPage> toFree = new ArrayList<>();
+        for (PhysicalPage pp : busyPhysicalPages) {
+            VirtualPage vp = pp.getVirtualPage();
+            if (vp.getPid() == process.getId()) {
+                vp.setPresent(false);
+                vp.setPpn(-1);
+                vp.setReferenced(false);
+                vp.setModified(false);
+
+                toFree.add(pp);
+            }
+        }
+
+        // переносимо фізичні сторінки назад у free
+        busyPhysicalPages.removeAll(toFree);
+        freePhysicalPages.addAll(toFree);
+    }
+
+
     public void resetReferencedBits() {
         for (PhysicalPage physicalPage : busyPhysicalPages) {
             if (physicalPage.getVirtualPage() != null) {
